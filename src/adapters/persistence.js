@@ -1,25 +1,26 @@
-// This page stores the habits and completions in localStorage
+// This page stores the habits and completions in MongoDB via API
 
-const HABITS_KEY = 'ht_habits_v1'
-const COMPLETIONS_KEY = 'ht_completions_v1'
+const API_BASE_URL = 'http://localhost:3001/api'
 
-// Function component to read the JSON from localStorage
-function readJson(key, fallback) {
+// Function to make API requests
+async function apiRequest(endpoint, options = {}) {
   try {
-    const raw = window.localStorage.getItem(key)
-    if (!raw) return fallback
-    const parsed = JSON.parse(raw)
-    return Array.isArray(fallback) && !Array.isArray(parsed) ? fallback : parsed
-  } catch (e) {
-    throw new Error('Persistence unavailable')
-  }
-}
-
-// Function component to write the JSON to localStorage
-function writeJson(key, value) {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value))
-  } catch (e) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    })
+    
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status} ${response.statusText}`)
+    }
+    
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('API request failed:', error)
     throw new Error('Persistence unavailable')
   }
 }
@@ -31,64 +32,67 @@ function generateId(prefix) {
 }
 
 // Function component to get the habits
-export function getHabits() {
-  return readJson(HABITS_KEY, [])
+export async function getHabits() {
+  return await apiRequest('/habits')
 }
   
 // Function component to save a habit
-export function saveHabit(habit) {
-  const habits = getHabits()
-  const existingIndex = habits.findIndex((h) => h.id === habit.id)
-  const now = Date.now()
-  const record = existingIndex >= 0
-    ? { ...habits[existingIndex], ...habit, updatedAt: now }
-    : { ...habit, id: habit.id || generateId('habit'), createdAt: now, updatedAt: now }
-  if (existingIndex >= 0) {
-    habits[existingIndex] = record
+export async function saveHabit(habit) {
+  if (habit.id) {
+    return await apiRequest(`/habits/${habit.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(habit),
+    })
   } else {
-    habits.push(record)
+    return await apiRequest('/habits', {
+      method: 'POST',
+      body: JSON.stringify(habit),
+    })
   }
-  writeJson(HABITS_KEY, habits)
-  return record
 }
 
 // Function component to delete a habit
-export function deleteHabit(habitId) {
-  const habits = getHabits().filter((h) => h.id !== habitId)
-  writeJson(HABITS_KEY, habits)
-  const completions = getAllCompletions().filter((c) => c.habitId !== habitId)
-  writeJson(COMPLETIONS_KEY, completions)
+export async function deleteHabit(habitId) {
+  await apiRequest(`/habits/${habitId}`, {
+    method: 'DELETE',
+  })
 }
 
 // Function component to get all completions
-export function getAllCompletions() {
-  return readJson(COMPLETIONS_KEY, [])
+export async function getAllCompletions() {
+  return await apiRequest('/completions')
 }
   
 // Function component to get the completions for a habit
-export function getCompletions(habitId) {
-  return getAllCompletions().filter((c) => c.habitId === habitId)
+export async function getCompletions(habitId) {
+  return await apiRequest(`/completions?habitId=${habitId}`)
 }
 
 // Function component to add a completion
-export function addCompletion(habitId, timestamp) {
-  const completions = getAllCompletions()
-  const record = { id: generateId('cmp'), habitId, timestamp }
-  completions.push(record)
-  writeJson(COMPLETIONS_KEY, completions)
-  return record
+export async function addCompletion(habitId, timestamp) {
+  return await apiRequest('/completions', {
+    method: 'POST',
+    body: JSON.stringify({ habitId, timestamp }),
+  })
 }
 
 // Function component to remove a completion
-export function removeCompletion(completionId) {
-  const completions = getAllCompletions().filter((c) => c.id !== completionId)
-  writeJson(COMPLETIONS_KEY, completions)
+export async function removeCompletion(completionId) {
+  await apiRequest(`/completions/${completionId}`, {
+    method: 'DELETE',
+  })
 }
   
 // Function component to replace all habits and completions
-export function replaceAll(habits, completions) {
-  writeJson(HABITS_KEY, habits)
-  writeJson(COMPLETIONS_KEY, completions)
+export async function replaceAll(habits, completions) {
+  // This would need to be implemented as a bulk operation or individual calls
+  // For now, we'll implement it as individual calls
+  for (const habit of habits) {
+    await saveHabit(habit)
+  }
+  for (const completion of completions) {
+    await addCompletion(completion.habitId, completion.timestamp)
+  }
 }
 
 

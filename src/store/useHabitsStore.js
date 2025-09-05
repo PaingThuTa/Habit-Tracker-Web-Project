@@ -18,10 +18,10 @@ export const useHabitsStore = create((set, get) => ({
   completions: [],
   persistenceError: null,
 
-  rehydrate() {
+  async rehydrate() {
     try {
-      const habits = getHabits()
-      const completions = getAllCompletions()
+      const habits = await getHabits()
+      const completions = await getAllCompletions()
       set({ habits, completions, persistenceError: null })
     } catch (e) {
       set({ persistenceError: 'Data storage is unavailable. Changes will not persist.' })
@@ -29,9 +29,9 @@ export const useHabitsStore = create((set, get) => ({
   },
 
   // Function to create a habit
-  createHabit(input) {
+  async createHabit(input) {
     try {
-      const record = persistHabit(input)
+      const record = await persistHabit(input)
       set((s) => ({ habits: [...s.habits, record], persistenceError: null }))
       return record
     } catch (e) {
@@ -41,11 +41,11 @@ export const useHabitsStore = create((set, get) => ({
   },
 
   // Function to update a habit
-  updateHabit(id, updates) {
+  async updateHabit(id, updates) {
     try {
       const existing = get().habits.find((h) => h.id === id)
       if (!existing) return null
-      const saved = persistHabit({ ...existing, ...updates })
+      const saved = await persistHabit({ ...existing, ...updates })
       set((s) => ({ habits: s.habits.map((h) => (h.id === id ? saved : h)), persistenceError: null }))
       return saved
     } catch (e) {
@@ -55,9 +55,9 @@ export const useHabitsStore = create((set, get) => ({
   },
 
   // Function to delete a habit
-  deleteHabit(id) {
+  async deleteHabit(id) {
     try {
-      persistDeleteHabit(id)
+      await persistDeleteHabit(id)
       set((s) => ({
         habits: s.habits.filter((h) => h.id !== id),
         completions: s.completions.filter((c) => c.habitId !== id),
@@ -69,7 +69,7 @@ export const useHabitsStore = create((set, get) => ({
   },
 
   // Function to add a completion
-  addCompletion(habitId, atTs = Date.now()) {
+  async addCompletion(habitId, atTs = Date.now()) {
     const habit = get().habits.find((h) => h.id === habitId)
     if (!habit) return null
     if (!isInCurrentPeriod(habit, atTs)) return null
@@ -80,7 +80,7 @@ export const useHabitsStore = create((set, get) => ({
       .length
     if (currentCount >= habit.frequency) return null
     try {
-      const record = persistAddCompletion(habitId, atTs)
+      const record = await persistAddCompletion(habitId, atTs)
       set((s) => ({ completions: [...s.completions, record], persistenceError: null }))
       return record
     } catch (e) {
@@ -90,7 +90,7 @@ export const useHabitsStore = create((set, get) => ({
   },
 
   // Function to undo the last completion
-  undoLastCompletion(habitId) {
+  async undoLastCompletion(habitId) {
     const habit = get().habits.find((h) => h.id === habitId)
     if (!habit) return null
     const { start, end } = getCurrentPeriodBounds(habit)
@@ -101,7 +101,7 @@ export const useHabitsStore = create((set, get) => ({
     if (inPeriod.length === 0) return null
     const target = inPeriod[0]
     try {
-      persistRemoveCompletion(target.id)
+      await persistRemoveCompletion(target.id)
       set((s) => ({ completions: s.completions.filter((c) => c.id !== target.id), persistenceError: null }))
       return target
     } catch (e) {
@@ -111,9 +111,9 @@ export const useHabitsStore = create((set, get) => ({
   },
 
   // Function to list completions
-  listCompletions(habitId) {
+  async listCompletions(habitId) {
     try {
-      return persistGetCompletions(habitId)
+      return await persistGetCompletions(habitId)
     } catch (e) {
       set({ persistenceError: 'Failed to load completions.' })
       return []
