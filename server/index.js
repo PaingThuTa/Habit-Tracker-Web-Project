@@ -4,6 +4,7 @@ import dotenv from 'dotenv'
 import { MongoClient, ServerApiVersion } from 'mongodb'
 import habitRoutes from './routes/habits.js'
 import completionRoutes from './routes/completions.js'
+import authRoutes from './routes/auth.js'
 
 dotenv.config()
 
