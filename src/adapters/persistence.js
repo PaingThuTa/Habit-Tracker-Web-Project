@@ -1,26 +1,40 @@
 // This page stores the habits and completions in MongoDB via API
 
+import { useAuthStore } from '../store/useAuthStore'
+
 const API_BASE_URL = 'http://localhost:3001/api'
 
-// Function to make API requests
+// Function to make API requests with Microsoft authentication
 async function apiRequest(endpoint, options = {}) {
   try {
+    // Get fresh access token
+    const accessToken = await useAuthStore.getState().getAccessToken()
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
         ...options.headers,
       },
       ...options,
     })
-    
+
     if (!response.ok) {
+      if (response.status === 401) {
+        // Token expired or invalid, redirect to login
+        useAuthStore.getState().logout()
+        throw new Error('Authentication required')
+      }
       throw new Error(`API Error: ${response.status} ${response.statusText}`)
     }
-    
+
     const data = await response.json()
     return data
   } catch (error) {
     console.error('API request failed:', error)
+    if (error.message === 'Authentication required') {
+      throw error
+    }
     throw new Error('Persistence unavailable')
   }
 }

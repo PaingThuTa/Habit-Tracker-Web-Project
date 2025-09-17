@@ -44,6 +44,7 @@ app.use((req, res, next) => {
   next()
 })
 
+app.use('/api/auth', authRoutes)
 app.use('/api/habits', habitRoutes)
 app.use('/api/completions', completionRoutes)
 

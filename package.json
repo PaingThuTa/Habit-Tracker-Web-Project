@@ -12,6 +12,9 @@
     "dev:full": "npm run server & npm run dev"
   },
   "dependencies": {
+    "@azure/msal-browser": "^4.22.1",
+    "@azure/msal-node": "^3.7.3",
+    "@azure/msal-react": "^3.0.19",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "date-fns": "^3.6.0",

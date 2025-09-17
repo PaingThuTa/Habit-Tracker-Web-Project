@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import { useAuthStore } from '../store/useAuthStore'
 
 function navClass({ isActive }) {
   return `flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm ${
@@ -12,6 +13,12 @@ function navClass({ isActive }) {
 // Function component to display the sidebar
 export default function Sidebar() {
   const [open, setOpen] = useState(false)
+  const { user, logout } = useAuthStore()
+
+  const handleLogout = async () => {
+    await logout()
+  }
+
   return (
     <>
       <button
@@ -31,7 +38,8 @@ export default function Sidebar() {
             <span className="material-icons">close</span>
           </button>
         </div>
-        <nav id="primary-navigation" className="flex flex-col gap-2" aria-label="Primary">
+
+        <nav id="primary-navigation" className="flex flex-col gap-2 mb-6" aria-label="Primary">
           <NavLink to="/habits" className={navClass} onClick={() => setOpen(false)}>
             <span className="text-base material-icons">checklist</span>
             <span>Habits</span>
@@ -41,6 +49,20 @@ export default function Sidebar() {
             <span>Dashboard</span>
           </NavLink>
         </nav>
+
+        {user && (
+          <div className="border-t pt-4 mt-auto">
+            <div className="text-xs text-slate-600 mb-2">Signed in as:</div>
+            <div className="text-sm font-medium text-slate-800 mb-3 truncate">{user.name || user.email}</div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm hover:bg-slate-100 text-slate-800 w-full"
+            >
+              <span className="text-base material-icons">logout</span>
+              <span>Sign Out</span>
+            </button>
+          </div>
+        )}
       </aside>
     </>
   )

@@ -1,5 +1,6 @@
 import express from 'express'
 import { ObjectId } from 'mongodb'
+import { authenticateToken } from '../middleware/auth.js'
 
 const router = express.Router()
 
@@ -8,9 +9,9 @@ function generateId(prefix) {
   return `${prefix}_${Date.now()}_${rand}`
 }
 
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const habits = await req.db.collection('habits').find({}).toArray()
+    const habits = await req.db.collection('habits').find({ userId: req.user.userId }).toArray()
     res.json(habits)
   } catch (error) {
     console.error('Error fetching habits:', error)
@@ -18,16 +19,17 @@ router.get('/', async (req, res) => {
   }
 })
 
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const now = Date.now()
     const habit = {
       ...req.body,
       id: req.body.id || generateId('habit'),
+      userId: req.user.userId,
       createdAt: now,
       updatedAt: now
     }
-    
+
     const result = await req.db.collection('habits').insertOne(habit)
     res.status(201).json(habit)
   } catch (error) {
@@ -36,27 +38,28 @@ router.post('/', async (req, res) => {
   }
 })
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const habitId = req.params.id
     const updates = {
       ...req.body,
       updatedAt: Date.now()
     }
-    
+
     delete updates.id
     delete updates.createdAt
-    
+    delete updates.userId
+
     const result = await req.db.collection('habits').findOneAndUpdate(
-      { id: habitId },
+      { id: habitId, userId: req.user.userId },
       { $set: updates },
       { returnDocument: 'after' }
     )
-    
+
     if (!result) {
       return res.status(404).json({ error: 'Habit not found' })
     }
-    
+
     res.json(result)
   } catch (error) {
     console.error('Error updating habit:', error)
@@ -64,18 +67,18 @@ router.put('/:id', async (req, res) => {
   }
 })
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const habitId = req.params.id
-    
-    const habitResult = await req.db.collection('habits').deleteOne({ id: habitId })
-    
+
+    const habitResult = await req.db.collection('habits').deleteOne({ id: habitId, userId: req.user.userId })
+
     if (habitResult.deletedCount === 0) {
       return res.status(404).json({ error: 'Habit not found' })
     }
-    
+
     await req.db.collection('completions').deleteMany({ habitId })
-    
+
     res.json({ message: 'Habit deleted successfully' })
   } catch (error) {
     console.error('Error deleting habit:', error)
