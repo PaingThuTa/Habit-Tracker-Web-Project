@@ -1,12 +1,12 @@
 // This page calculates the timestamp of the habits
 
 import {
-  startOfDay,
-  addDays,
-  differenceInCalendarDays,
-  startOfMonth,
-  addMonths,
-  differenceInCalendarMonths,
+    addDays,
+    addMonths,
+    differenceInCalendarDays,
+    differenceInCalendarMonths,
+    startOfDay,
+    startOfMonth,
 } from 'date-fns'
 
 // Function component to get the anchor timestamp
@@ -35,6 +35,38 @@ export function getCurrentPeriodBounds(habit, nowTs = Date.now()) {
   const start = addDays(anchor, weekIndex * 7).getTime()
   const end = addDays(anchor, (weekIndex + 1) * 7).getTime()
   return { start, end }
+}
+
+// Function component to get the milliseconds until the current period ends
+export function getMsUntilPeriodEnd(habit, nowTs = Date.now()) {
+  const { end } = getCurrentPeriodBounds(habit, nowTs)
+  return Math.max(0, end - nowTs)
+}
+
+// Function component to format a short duration like "9h" or "12m"
+export function formatShortDuration(ms) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000))
+  const minutes = Math.floor(totalSeconds / 60)
+  const hours = Math.floor(minutes / 60)
+  const days = Math.floor(hours / 24)
+  if (days >= 1) return `${days}d`
+  if (hours >= 1) return `${hours}h`
+  if (minutes >= 1) return `${minutes}m`
+  return `${totalSeconds}s`
+}
+
+// Function component to map period type to a human title
+export function getPeriodTypeTitle(periodType) {
+  if (periodType === 'weekly') return 'Weekly'
+  if (periodType === 'monthly') return 'Monthly'
+  return 'Daily'
+}
+
+// Function component to get the current period label used in UI
+export function getCurrentPeriodLabel(habit) {
+  if (habit.periodType === 'weekly') return 'This week'
+  if (habit.periodType === 'monthly') return 'This month'
+  return 'Today'
 }
 
 // Function component to check if the timestamp is in the current period

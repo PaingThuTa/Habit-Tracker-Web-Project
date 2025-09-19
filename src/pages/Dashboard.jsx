@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { addDays, addMonths, eachDayOfInterval, getDay, startOfDay, startOfMonth } from 'date-fns'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { startOfDay, addDays, addMonths, startOfMonth, eachDayOfInterval, format, getDay } from 'date-fns'
 import { useHabitsStore } from '../store/useHabitsStore'
 import { computeStreaks } from '../utils/metrics'
 import { getAnchorTimestamp, getPeriodIndex } from '../utils/time'
@@ -77,6 +77,8 @@ export default function Dashboard() {
     for (let i = firstIndex; i <= lastIndex; i++) {
       const bounds = getPeriodBoundsForIndex(habit, i)
       if (bounds.end <= rangeStart || bounds.start >= rangeEndExclusive) continue
+      const habitStart = startOfDay(new Date(habit.startDate ? habit.startDate : habit.createdAt)).getTime()
+      if (bounds.end <= habitStart) continue
       if (bounds.end > Date.now()) continue
       const inPeriod = habitCompletions.filter((c) => c.timestamp >= bounds.start && c.timestamp < bounds.end)
       const completedCount = Math.min(inPeriod.length, habit.frequency)
@@ -107,19 +109,18 @@ export default function Dashboard() {
 
   // Function to get the totals
   const totals = useMemo(() => {
-    let totalScheduled = 0
-    let totalCompletedScheduled = 0
+    let completedSum = 0
     let totalMisses = 0
     for (const habit of habits) {
       const habitCompletions = completions.filter((c) => c.habitId === habit.id)
-      const { scheduled, completed } = countScheduledAndCompletedInRange(habit, habitCompletions)
-      totalScheduled += scheduled
-      totalCompletedScheduled += completed
+      const { completed } = countScheduledAndCompletedInRange(habit, habitCompletions)
+      completedSum += completed
       totalMisses += countMissesInRange(habit, habitCompletions)
     }
     const totalCompletions = completionsInRange.length
     const misses = totalMisses
-    const completionRate = totalScheduled > 0 ? totalCompletedScheduled / totalScheduled : 0
+    const observed = completedSum + misses
+    const completionRate = observed > 0 ? completedSum / observed : 0
     return { totalCompletions, misses, completionRate }
   }, [habits, completions, completionsInRange, countMissesInRange, countScheduledAndCompletedInRange])
 
@@ -175,8 +176,8 @@ export default function Dashboard() {
     )
   }
   
-  // Function to show the trend chart
-  function TrendChart() {
+  // Function to show the daily trend as a line chart
+  function DailyTrendChart() {
     if (persistenceError) {
       return (
         <div className="p-4 card" role="region" aria-label="Completions trend">
@@ -185,77 +186,114 @@ export default function Dashboard() {
         </div>
       )
     }
-    const max = Math.max(1, ...daysInRange.map((d) => completionsByDayKey.get(startOfDay(d).getTime()) || 0))
-    const totalInRange = daysInRange.reduce((acc, d) => acc + (completionsByDayKey.get(startOfDay(d).getTime()) || 0), 0)
+    const values = daysInRange.map((d) => completionsByDayKey.get(startOfDay(d).getTime()) || 0)
+    const totalInRange = values.reduce((a, b) => a + b, 0)
+    if (totalInRange === 0) {
+      return (
+        <div className="p-4 card" role="region" aria-label="Completions trend">
+          <div className="mb-3 text-sm font-medium">Daily completions (trend)</div>
+          <div className="text-sm text-slate-600">No completions in this range.</div>
+        </div>
+      )
+    }
+    const maxVal = Math.max(1, ...values)
+    const W = 360
+    const H = 120
+    const dx = values.length > 1 ? W / (values.length - 1) : 0
+    const points = values.map((v, i) => {
+      const x = Math.round(i * dx)
+      const y = Math.round(H - (v / maxVal) * H)
+      return [x, y]
+    })
+    const linePath = points.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ')
+    const areaPath = `${linePath} L ${W} ${H} L 0 ${H} Z`
     return (
       <div className="p-4 card" role="region" aria-label="Completions trend">
-        <div className="mb-3 text-sm font-medium">Daily completions</div>
-        {totalInRange === 0 ? (
-          <div className="text-sm text-slate-600">No completions in this range.</div>
-        ) : (
-          <div className="flex gap-1 items-end h-32">
-            {daysInRange.map((d) => {
-              const key = startOfDay(d).getTime()
-              const count = completionsByDayKey.get(key) || 0
-              const height = Math.round((count / max) * 100)
-              return (
-                <div key={key} className="flex flex-col items-center w-6">
-                  <div
-                    className="w-4 rounded-t bg-slate-700"
-                    style={{ height: `${height}%` }}
-                    title={`${format(d, 'MMM d')}: ${count} completions`}
-                  />
-                  <div className="mt-1 text-[10px] text-slate-600" aria-hidden>{format(d, 'MM/dd')}</div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+        <div className="mb-3 text-sm font-medium">Daily completions (trend)</div>
+        <div className="w-full">
+          <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Line chart of daily completions" className="w-full h-40">
+            <defs>
+              <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#475569" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#475569" stopOpacity="0.05" />
+              </linearGradient>
+            </defs>
+            <path d={areaPath} fill="url(#trendFill)" />
+            <path d={linePath} fill="none" stroke="#334155" strokeWidth="2" />
+          </svg>
+        </div>
       </div>
     )
   }
 
-  // Function to show the weekday histogram
-  function WeekdayHistogram() {
+  // Function to show the weekday distribution as a donut chart
+  function WeekdayDonutChart() {
     if (persistenceError) {
       return (
-        <div className="p-4 card" role="region" aria-label="Weekday histogram">
+        <div className="p-4 card" role="region" aria-label="Completions by weekday">
           <div className="mb-2 text-sm text-red-700">Failed to load data.</div>
           <RetryButton />
         </div>
       )
     }
-    const weekdayCounts = [0, 0, 0, 0, 0, 0, 0]
+    const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    const colors = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6', '#f97316']
+    const counts = [0, 0, 0, 0, 0, 0, 0]
     for (const d of daysInRange) {
       const key = startOfDay(d).getTime()
       const dow = getDay(d)
-      weekdayCounts[dow] += completionsByDayKey.get(key) || 0
+      counts[dow] += completionsByDayKey.get(key) || 0
     }
-    const max = Math.max(1, ...weekdayCounts)
-    const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    const sum = weekdayCounts.reduce((a, b) => a + b, 0)
-    return (
-      <div className="p-4 card" role="region" aria-label="Weekday histogram">
-        <div className="mb-3 text-sm font-medium">Completions by weekday</div>
-        {sum === 0 ? (
+    const total = counts.reduce((a, b) => a + b, 0)
+    if (total === 0) {
+      return (
+        <div className="p-4 card" role="region" aria-label="Completions by weekday">
+          <div className="mb-3 text-sm font-medium">Completions by weekday</div>
           <div className="text-sm text-slate-600">No data to show for this range.</div>
-        ) : (
-          <div className="flex gap-2 items-end h-32">
-            {weekdayCounts.map((v, i) => {
-              const height = Math.round((v / max) * 100)
-              return (
-                <div key={i} className="flex flex-col items-center w-8">
-                  <div
-                    className="w-6 rounded-t bg-stone-400"
-                    style={{ height: `${height}%` }}
-                    title={`${labels[i]}: ${v} completions`}
-                  />
-                  <div className="mt-1 text-[10px] text-slate-600" aria-hidden>{labels[i]}</div>
-                </div>
+        </div>
+      )
+    }
+    const R = 52
+    const C = 2 * Math.PI * R
+    let offset = 0
+    return (
+      <div className="p-4 card" role="region" aria-label="Completions by weekday">
+        <div className="mb-3 text-sm font-medium">Completions by weekday</div>
+        <div className="flex items-center gap-4">
+          <svg viewBox="0 0 140 140" className="w-40 h-40" role="img" aria-label="Donut chart of completions by weekday">
+            <circle cx="70" cy="70" r={R} fill="none" stroke="#e5e7eb" strokeWidth="18" />
+            {counts.map((v, i) => {
+              if (v === 0) return null
+              const len = (v / total) * C
+              const el = (
+                <circle
+                  key={i}
+                  cx="70"
+                  cy="70"
+                  r={R}
+                  fill="none"
+                  stroke={colors[i]}
+                  strokeWidth="18"
+                  strokeDasharray={`${len} ${C - len}`}
+                  strokeDashoffset={-offset}
+                  transform="rotate(-90 70 70)"
+                />
               )
+              offset += len
+              return el
             })}
-          </div>
-        )}
+            <text x="70" y="70" textAnchor="middle" dominantBaseline="central" className="fill-slate-700" fontSize="14">{total}</text>
+          </svg>
+          <ul className="text-sm space-y-1">
+            {counts.map((v, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: colors[i] }} />
+                <span className="text-slate-700 w-8">{labels[i]}</span>
+                <span className="text-slate-500">{v} ({Math.round((v / total) * 100)}%)</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     )
   }
@@ -286,8 +324,9 @@ export default function Dashboard() {
       const habitCompletions = completions.filter((c) => c.habitId === habit.id)
       const { currentStreak, bestStreak } = computeStreaks(habit, habitCompletions)
       const { scheduled, completed } = countScheduledAndCompletedInRange(habit, habitCompletions)
-      const rate = scheduled > 0 ? Math.round((completed / scheduled) * 100) : 0
       const misses = countMissesInRange(habit, habitCompletions)
+      const denom = completed + misses
+      const rate = denom > 0 ? Math.round((completed / denom) * 100) : 0
       return { habit, currentStreak, bestStreak, rate, misses }
     })
     return (
@@ -383,12 +422,12 @@ export default function Dashboard() {
         {isLoading ? (
           <div className="p-4 h-60 animate-pulse card" />
         ) : (
-          <TrendChart />
+          <DailyTrendChart />
         )}
         {isLoading ? (
           <div className="p-4 h-60 animate-pulse card" />
         ) : (
-          <WeekdayHistogram />
+          <WeekdayDonutChart />
         )}
       </section>
 
