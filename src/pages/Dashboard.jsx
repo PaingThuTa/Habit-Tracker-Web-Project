@@ -323,7 +323,7 @@ export default function Dashboard() {
     const rows = filteredHabits.map((habit) => {
       const habitCompletions = completions.filter((c) => c.habitId === habit.id)
       const { currentStreak, bestStreak } = computeStreaks(habit, habitCompletions)
-      const { scheduled, completed } = countScheduledAndCompletedInRange(habit, habitCompletions)
+      const { completed } = countScheduledAndCompletedInRange(habit, habitCompletions)
       const misses = countMissesInRange(habit, habitCompletions)
       const denom = completed + misses
       const rate = denom > 0 ? Math.round((completed / denom) * 100) : 0

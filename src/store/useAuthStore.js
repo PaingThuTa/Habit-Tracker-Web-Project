@@ -75,7 +75,7 @@ export const useAuthStore = create((set, get) => ({
           // Verify user with our backend
           await get().verifyWithBackend(response.accessToken)
 
-        } catch (error) {
+        } catch {
           console.log('Silent token acquisition failed, user needs to login again')
           set({ isLoading: false })
         }

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuthStore } from '../store/useAuthStore'
+import Modal from './Modal'
 
 function navClass({ isActive }) {
   return `flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm ${
@@ -13,10 +14,16 @@ function navClass({ isActive }) {
 // Function component to display the sidebar
 export default function Sidebar() {
   const [open, setOpen] = useState(false)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
   const { user, logout } = useAuthStore()
 
   const handleLogout = async () => {
     await logout()
+    setShowLogoutModal(false)
+  }
+
+  const confirmLogout = () => {
+    setShowLogoutModal(true)
   }
 
   return (
@@ -55,7 +62,7 @@ export default function Sidebar() {
             <div className="text-xs text-slate-600 mb-2">Signed in as:</div>
             <div className="text-sm font-medium text-slate-800 mb-3 truncate">{user.name || user.email}</div>
             <button
-              onClick={handleLogout}
+              onClick={confirmLogout}
               className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm hover:bg-slate-100 text-slate-800 w-full"
             >
               <span className="text-base material-icons">logout</span>
@@ -64,6 +71,26 @@ export default function Sidebar() {
           </div>
         )}
       </aside>
+
+      <Modal isOpen={showLogoutModal} onClose={() => setShowLogoutModal(false)} title="Confirm Sign Out">
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">Are you sure you want to sign out?</p>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => setShowLogoutModal(false)}
+              className="btn btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleLogout}
+              className="btn btn-danger"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </Modal>
     </>
   )
 }

@@ -49,6 +49,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     delete updates.id
     delete updates.createdAt
     delete updates.userId
+    delete updates._id
 
     const result = await req.db.collection('habits').findOneAndUpdate(
       { id: habitId, userId: req.user.userId },
@@ -60,7 +61,10 @@ router.put('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Habit not found' })
     }
 
-    res.json(result)
+    // MongoDB findOneAndUpdate with returnDocument: 'after' returns the document directly
+    // But sometimes it might be wrapped in .value property depending on driver version
+    const updatedHabit = result.value || result
+    res.json(updatedHabit)
   } catch (error) {
     console.error('Error updating habit:', error)
     res.status(500).json({ error: 'Failed to update habit' })
