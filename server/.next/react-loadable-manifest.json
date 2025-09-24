@@ -1,0 +1,14 @@
+{
+  "..\\node_modules\\@azure\\msal-browser\\dist\\telemetry\\BrowserPerformanceClient.mjs -> ./BrowserPerformanceMeasurement.mjs": {
+    "id": null,
+    "files": []
+  },
+  "pages\\[[...appRoute]].jsx -> ../../src/App": {
+    "id": 706,
+    "files": [
+      "static/chunks/ceabcd47.7e065d395161cf31.js",
+      "static/chunks/389.dd941b059cf937c4.js",
+      "static/chunks/706.19fa7b64109db9c9.js"
+    ]
+  }
+}
