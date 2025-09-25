@@ -1,3 +1,5 @@
+'use client'
+
 // Icon picker component
 
 const COMMON_ICONS = [

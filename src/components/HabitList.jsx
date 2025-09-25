@@ -1,10 +1,12 @@
+'use client'
+
 // List of habits
 
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useHabitsStore } from '../store/useHabitsStore'
-import { computeCurrentPeriodProgress } from '../utils/metrics'
-import { getCurrentPeriodBounds } from '../utils/time'
+import Link from 'next/link'
+import { useHabitsStore } from '@/store/useHabitsStore'
+import { computeCurrentPeriodProgress } from '@/utils/metrics'
+import { getCurrentPeriodBounds } from '@/utils/time'
 import ProgressBar from './ProgressBar'
 import Modal from './Modal'
 import HabitForm from './HabitForm'
@@ -35,7 +37,7 @@ export default function HabitList() {
                 <div className="text-base font-semibold">{h.name}</div>
                 <div className="text-xs text-slate-500">{h.category || 'Uncategorized'}</div>
               </div>
-              <Link to={`/habit/${h.id}`} className="ml-1 btn btn-secondary btn-icon" aria-label="View stats" title="View stats">
+              <Link href={`/habit/${h.id}`} className="ml-1 btn btn-secondary btn-icon" aria-label="View stats" title="View stats">
                 <span className="material-icons">insights</span>
               </Link>
             </div>

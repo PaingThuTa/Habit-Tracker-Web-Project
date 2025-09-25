@@ -1,7 +1,9 @@
+'use client'
+
 // Form to create or edit a habit
 
 import { useState, useId } from 'react'
-import { useHabitsStore } from '../store/useHabitsStore'
+import { useHabitsStore } from '@/store/useHabitsStore'
 import { startOfDay } from 'date-fns'
 import IconPicker from './IconPicker'
 

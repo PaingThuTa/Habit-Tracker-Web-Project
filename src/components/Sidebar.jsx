@@ -1,19 +1,22 @@
-// Sidebar component
+'use client'
 
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
-import { useAuthStore } from '../store/useAuthStore'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { useAuthStore } from '@/store/useAuthStore'
 
-function navClass({ isActive }) {
+function navClass(pathname, target) {
+  const isHabitDetail = target === '/habits' && pathname.startsWith('/habit')
+  const isActive = pathname === target || pathname.startsWith(`${target}/`) || isHabitDetail
   return `flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm ${
     isActive ? 'bg-slate-200 text-slate-900' : 'hover:bg-slate-100 text-slate-800'
   }`
 }
 
-// Function component to display the sidebar
 export default function Sidebar() {
   const [open, setOpen] = useState(false)
   const { user, logout } = useAuthStore()
+  const pathname = usePathname()
 
   const handleLogout = async () => {
     await logout()
@@ -40,14 +43,14 @@ export default function Sidebar() {
         </div>
 
         <nav id="primary-navigation" className="flex flex-col gap-2 mb-6" aria-label="Primary">
-          <NavLink to="/habits" className={navClass} onClick={() => setOpen(false)}>
+          <Link href="/habits" className={navClass(pathname, '/habits')} onClick={() => setOpen(false)}>
             <span className="text-base material-icons">checklist</span>
             <span>Habits</span>
-          </NavLink>
-          <NavLink to="/dashboard" className={navClass} onClick={() => setOpen(false)}>
+          </Link>
+          <Link href="/dashboard" className={navClass(pathname, '/dashboard')} onClick={() => setOpen(false)}>
             <span className="text-base material-icons">dashboard</span>
             <span>Dashboard</span>
-          </NavLink>
+          </Link>
         </nav>
 
         {user && (
@@ -67,5 +70,3 @@ export default function Sidebar() {
     </>
   )
 }
-
-

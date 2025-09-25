@@ -1,3 +1,5 @@
+'use client'
+
 // Modal component
 
 import { useEffect, useRef } from 'react'

@@ -1,3 +1,5 @@
+'use client'
+
 // Progress bar component
 
 // Function component to display a progress bar

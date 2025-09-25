@@ -1,8 +1,8 @@
 // This page stores the habits and completions in MongoDB via API
 
-import { useAuthStore } from '../store/useAuthStore'
+import { useAuthStore } from '@/store/useAuthStore'
 
-const API_BASE_URL = 'http://localhost:3001/api'
+const API_BASE_URL = '/api'
 
 // Function to make API requests with Microsoft authentication
 async function apiRequest(endpoint, options = {}) {

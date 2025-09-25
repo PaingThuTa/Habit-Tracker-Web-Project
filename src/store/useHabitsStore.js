@@ -1,5 +1,8 @@
-// This page stores the state of the habits
+// habits store for the habit tracker
 
+'use client'
+
+// This page stores the state of the habits
 import { create } from 'zustand'
 import {
   getHabits,
@@ -9,8 +12,8 @@ import {
   addCompletion as persistAddCompletion,
   removeCompletion as persistRemoveCompletion,
   getAllCompletions,
-} from '../adapters/persistence'
-import { getCurrentPeriodBounds, isInCurrentPeriod } from '../utils/time'
+} from '@/adapters/persistence'
+import { getCurrentPeriodBounds, isInCurrentPeriod } from '@/utils/time'
 
 // Function component to store the state of the habits
 export const useHabitsStore = create((set, get) => ({
