@@ -21,6 +21,7 @@ export async function PUT(request, { params }) {
     delete payload.id
     delete payload.createdAt
     delete payload.userId
+    delete payload._id
 
     const result = await db.collection('habits').findOneAndUpdate(
       { id: habitId, userId: user.userId },
@@ -28,11 +29,11 @@ export async function PUT(request, { params }) {
       { returnDocument: 'after' }
     )
 
-    if (!result.value) {
+    if (!result) {
       return NextResponse.json({ error: 'Habit not found' }, { status: 404 })
     }
 
-    return NextResponse.json(result.value)
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Error updating habit:', error)
     return NextResponse.json({ error: 'Failed to update habit' }, { status: 500 })

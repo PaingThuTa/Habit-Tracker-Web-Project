@@ -14,12 +14,13 @@ let msalInstance = null
 
 function createMsalConfig() {
   const origin = typeof window !== 'undefined' ? window.location.origin : undefined
+  const baseUrl = origin ? `${origin}/habit-tracker` : undefined
   return {
     auth: {
       clientId: '68357b1a-48ee-462c-9bb4-3a7e6a008ef6',
       authority: 'https://login.microsoftonline.com/c1f3dc23-b7f8-48d3-9b5d-2b12f158f01f',
-      redirectUri: origin,
-      postLogoutRedirectUri: origin,
+      redirectUri: baseUrl,
+      postLogoutRedirectUri: baseUrl,
       navigateToLoginRequestUrl: false,
     },
     cache: {
@@ -194,7 +195,8 @@ export const useAuthStore = create((set, get) => ({
 
   async verifyWithBackend(accessToken) {
     try {
-      const response = await fetch('/api/auth/microsoft', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api'
+      const response = await fetch(`${apiUrl}/auth/microsoft`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
