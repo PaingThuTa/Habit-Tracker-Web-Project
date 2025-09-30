@@ -1,3 +1,5 @@
+// habits page for the habit tracker
+
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
