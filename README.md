@@ -11,7 +11,13 @@ Habit tracking app with Microsoft login (MSAL), MongoDB persistence, Tailwind CS
 
 The site is configured to run under a base path: `/habit-tracker` (see `next.config.mjs`). If you deploy at a different subpath or root, update configuration accordingly.
 
-## Stack
+## Data Models
+
+- **Habits**: User-defined habits with name, description, frequency, interval (daily/weekly/monthly), icon, and category
+- **Categories**: Custom tags for organizing habits with duplicate-protection and cascading updates
+- **Completions**: Timestamped records tracking when users complete their habits
+
+## Tech Stack
 
 - **Framework**: `next@14` (App Router, React 18)
 - **UI**: Tailwind CSS (`tailwind.config.js`, `src/app/globals.css`)
@@ -27,6 +33,23 @@ The site is configured to run under a base path: `/habit-tracker` (see `next.con
 - **Categories** management with duplicate-protection and cascading updates.
 - **Dashboards and detail pages** built with the App Router groups under `src/app/(frontend)`.
 - **Secure API** routes enforce Bearer tokens and user scoping in MongoDB.
+
+## Screenshots
+
+### Login Page
+![Login Page](screenshots/login%20page.png)
+
+### Main Page
+![Main Page](screenshots/main%20page.png)
+
+### Dashboard Page
+![Dashboard Page](screenshots/dashboard%20page.png)
+
+### Categories Page
+![Categories Page](screenshots/categories%20page.png)
+
+### Habit Details Page
+![Habit Details Page](screenshots/habit%20details%20page.png)
 
 ## Getting Started
 
