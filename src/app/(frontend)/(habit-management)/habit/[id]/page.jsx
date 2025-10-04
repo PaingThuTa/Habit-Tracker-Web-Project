@@ -3,20 +3,31 @@
 'use client'
 
 import { format, isToday, isYesterday, startOfDay } from 'date-fns'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import ProgressBar from '@/components/ProgressBar'
+import Modal from '@/components/Modal'
 import { useHabitsStore } from '@/store/useHabitsStore'
 import { computeCurrentPeriodProgress, computeFailCount, computeRecord, computeStreaks } from '@/utils/metrics'
 import { formatShortDuration, getCurrentPeriodLabel, getMsUntilPeriodEnd, getPeriodIndex, getPeriodTypeTitle } from '@/utils/time'
 
+function toLocalInputValue(ts) {
+  const date = new Date(ts)
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
+  return date.toISOString().slice(0, 16)
+}
+
 export default function HabitDetail() {
   const { id } = useParams()
-  const { habits, completions, addCompletion, undoLastCompletion } = useHabitsStore()
+  const { habits, completions, addCompletion, undoLastCompletion, updateCompletion, rehydrate } = useHabitsStore()
   const habit = habits.find((h) => h.id === id)
   const habitCompletions = completions.filter((c) => c.habitId === id)
   const [range, setRange] = useState('30')
+  const [editingCompletion, setEditingCompletion] = useState(null)
+  const [editTimestamp, setEditTimestamp] = useState('')
+  const [editError, setEditError] = useState('')
+  const [isHydrating, setIsHydrating] = useState(false)
 
   const stats = useMemo(() => {
     if (!habit) return null
@@ -26,6 +37,22 @@ export default function HabitDetail() {
     const record = computeRecord(habit, habitCompletions)
     return { progress, currentStreak, bestStreak, failCount, record }
   }, [habit, habitCompletions])
+
+  // Ensure local hydration on direct entry or transient empty store
+  useEffect(() => {
+    if (habits.length === 0) {
+      let alive = true
+      setIsHydrating(true)
+      Promise.resolve(rehydrate()).finally(() => { if (alive) setIsHydrating(false) })
+      return () => { alive = false }
+    }
+  }, [habits.length, rehydrate])
+
+  if (isHydrating || habits.length === 0) {
+    return (
+      <div className="p-4 mx-auto max-w-3xl">Loading…</div>
+    )
+  }
 
   if (!habit) {
     return (
@@ -41,15 +68,33 @@ export default function HabitDetail() {
   const msUntilReset = getMsUntilPeriodEnd(habit)
   const resetsIn = formatShortDuration(msUntilReset)
   const periodTypeTitle = getPeriodTypeTitle(habit.periodType)
-
+  const habitCreationTs = habit.createdAt || habit.startDate || 0
   const unit = habit.periodType === 'weekly' ? 'week' : habit.periodType === 'monthly' ? 'month' : 'day'
 
   function handleMarkDone() {
     addCompletion(habit.id)
   }
-
   async function handleUndo() {
     await undoLastCompletion(habit.id)
+  }
+
+  async function handleCompletionUpdate(event) {
+    event.preventDefault()
+    if (!editingCompletion || !editTimestamp) return
+    const nextTimestamp = new Date(editTimestamp).getTime()
+    if (Number.isNaN(nextTimestamp)) return
+    if (nextTimestamp > Date.now()) {
+      setEditError('Timestamp cannot be in the future.')
+      return
+    }
+    if (habitCreationTs && nextTimestamp < habitCreationTs) {
+      setEditError('Timestamp cannot be earlier than when the habit was created.')
+      return
+    }
+    await updateCompletion(editingCompletion.id, { timestamp: nextTimestamp })
+    setEditingCompletion(null)
+    setEditTimestamp('')
+    setEditError('')
   }
 
   const latestInCurrentPeriod = habitCompletions
@@ -176,9 +221,16 @@ export default function HabitDetail() {
                         <span>{format(new Date(c.timestamp), 'p')}</span>
                         <span className="text-slate-500">{periodNumberLabel(c.timestamp)}</span>
                       </div>
-                      {idx === 0 && isToday(new Date(dayTs)) ? (
-                        <button onClick={handleUndo} className="text-xs text-slate-600 hover:underline">Undo</button>
-                      ) : null}
+                      <div className="flex gap-2 items-center">
+                        <button onClick={() => {
+                          setEditingCompletion(c)
+                          setEditTimestamp(toLocalInputValue(c.timestamp))
+                          setEditError('')
+                        }} className="text-xs text-slate-600 hover:underline">Edit</button>
+                        {idx === 0 && isToday(new Date(dayTs)) ? (
+                          <button onClick={handleUndo} className="text-xs text-slate-600 hover:underline">Undo</button>
+                        ) : null}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -187,6 +239,29 @@ export default function HabitDetail() {
           </div>
         )}
       </div>
+      <Modal isOpen={!!editingCompletion} onClose={() => { setEditingCompletion(null); setEditTimestamp(''); setEditError('') }} title="Edit completion">
+        {editingCompletion ? (
+          <form onSubmit={handleCompletionUpdate} className="space-y-4">
+            <label className="block text-sm font-medium text-slate-600">
+              Timestamp
+              <input
+                type="datetime-local"
+                value={editTimestamp}
+                onChange={(event) => setEditTimestamp(event.target.value)}
+                className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                required
+                min={habitCreationTs ? toLocalInputValue(habitCreationTs) : undefined}
+                max={toLocalInputValue(Date.now())}
+              />
+            </label>
+            {editError ? <p className="text-sm text-red-600">{editError}</p> : null}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => { setEditingCompletion(null); setEditTimestamp(''); setEditError('') }} className="btn btn-secondary">Cancel</button>
+              <button type="submit" className="btn btn-primary">Save</button>
+            </div>
+          </form>
+        ) : null}
+      </Modal>
     </div>
   )
 }

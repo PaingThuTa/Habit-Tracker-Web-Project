@@ -1,154 +1,264 @@
 'use client'
 
-// Form to create or edit a habit
+// Form used to create or edit a habit
 
-import { useState, useId } from 'react'
-import { useHabitsStore } from '@/store/useHabitsStore'
-import { startOfDay } from 'date-fns'
+import { useEffect, useMemo, useState } from 'react'
 import IconPicker from './IconPicker'
+import { useCategoriesStore } from '@/store/useCategoriesStore'
 
-const PERIODS = [
+const PERIOD_OPTIONS = [
   { value: 'daily', label: 'Daily' },
   { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly' },
 ]
 
-// Function component to create or edit a habit
+function initialState(initialValue) {
+  return {
+    name: initialValue?.name || '',
+    description: initialValue?.description || '',
+    icon: initialValue?.icon || 'check_circle',
+    periodType: initialValue?.periodType || 'daily',
+    frequency: String(initialValue?.frequency ?? 1),
+    category: initialValue?.category || '',
+  }
+}
+
 export default function HabitForm({ initialValue, onSubmit, onCancel }) {
-  const { habits } = useHabitsStore()
-  const [name, setName] = useState(initialValue?.name || '')
-  const [description, setDescription] = useState(initialValue?.description || '')
-  const [periodType, setPeriodType] = useState(initialValue?.periodType || 'daily')
-  const [frequency, setFrequency] = useState(initialValue?.frequency || 1)
-  const [category, setCategory] = useState(initialValue?.category || '')
-  const [icon, setIcon] = useState(initialValue?.icon || 'check_circle')
-  const [errors, setErrors] = useState({})
-  const uid = useId()
-  const nameId = `name-${uid}`
-  const descId = `description-${uid}`
-  const periodId = `period-${uid}`
-  const freqId = `frequency-${uid}`
-  const categoryId = `category-${uid}`
-  const dataListId = `categories-${uid}`
-  const categoryOptions = Array.from(new Set((habits || []).map((h) => h.category).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+  const { categories, rehydrate, createCategory } = useCategoriesStore()
+  const [form, setForm] = useState(() => initialState(initialValue))
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showCreateCategory, setShowCreateCategory] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false)
+  const [categoryError, setCategoryError] = useState('')
 
-  // Function to validate the form
-  function validate() {
-    const next = {}
-    if (!name.trim()) next.name = 'Name is required'
-    const freq = Number(frequency)
-    if (!Number.isInteger(freq) || freq < 1) next.frequency = 'Frequency must be an integer ≥ 1'
-    setErrors(next)
-    return Object.keys(next).length === 0
-  }
+  useEffect(() => {
+    setForm(initialState(initialValue))
+  }, [initialValue])
 
-  // Function to handle the form submission
-  function handleSubmit(e) {
-    e.preventDefault()
-    if (!validate()) return
-    const todayStart = startOfDay(new Date()).getTime()
-    const payload = {
-      ...(initialValue?.id ? { id: initialValue.id } : {}),
-      name: name.trim(),
-      description: description.trim() || undefined,
-      periodType,
-      frequency: Number(frequency),
-      category: category.trim() || undefined,
-      icon,
-      startDate: todayStart,
+  useEffect(() => {
+    if (categories.length === 0) {
+      void rehydrate()
     }
-    onSubmit?.(payload)
+  }, [categories.length, rehydrate])
+
+  const categoryNames = useMemo(() => {
+    return categories
+      .map((c) => c.name)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b))
+  }, [categories])
+
+  function updateField(key, value) {
+    setForm((prev) => ({ ...prev, [key]: value }))
   }
+
+  function resetCategoryCreator() {
+    setNewCategoryName('')
+    setCategoryError('')
+    setIsCreatingCategory(false)
+  }
+
+  function toggleCategoryCreator() {
+    if (showCreateCategory) {
+      resetCategoryCreator()
+    }
+    setShowCreateCategory((prev) => !prev)
+  }
+
+  async function handleCreateCategory() {
+    if (isCreatingCategory) return
+    const name = newCategoryName.trim()
+    if (!name) {
+      setCategoryError('Category name is required.')
+      return
+    }
+    setIsCreatingCategory(true)
+    setCategoryError('')
+    const created = await createCategory(name)
+    if (created) {
+      updateField('category', created.name)
+      resetCategoryCreator()
+      setShowCreateCategory(false)
+    } else {
+      setCategoryError('Failed to create category.')
+      setIsCreatingCategory(false)
+    }
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    if (isSubmitting) return
+
+    const name = form.name.trim()
+    if (!name) {
+      setError('Name is required.')
+      return
+    }
+
+    const frequency = Number(form.frequency)
+    if (!Number.isFinite(frequency) || frequency < 1) {
+      setError('Frequency must be at least 1.')
+      return
+    }
+
+    const payload = {
+      name,
+      description: form.description.trim(),
+      icon: form.icon || 'check_circle',
+      periodType: form.periodType,
+      frequency,
+      category: form.category.trim(),
+    }
+
+    try {
+      setIsSubmitting(true)
+      setError('')
+      await Promise.resolve(onSubmit?.(payload))
+    } catch (err) {
+      console.error('Failed to submit habit form:', err)
+      setError('Failed to save habit.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const submitLabel = initialValue ? 'Save' : 'Create Habit'
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label htmlFor={nameId} className="block mb-1 text-sm font-medium">Name</label>
-        <input
-          id={nameId}
-          name="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full rounded border border-slate-300 bg-[#f7f1e4] px-3 py-2 focus:border-slate-400 focus:outline-none"
-          aria-invalid={!!errors.name}
-          aria-describedby={errors.name ? `${nameId}-error` : undefined}
-          required
-        />
-        {errors.name ? <p id={`${nameId}-error`} className="mt-1 text-sm text-red-600">{errors.name}</p> : null}
-      </div>
-      <div>
-        <label htmlFor={descId} className="block mb-1 text-sm font-medium">Description</label>
-        <textarea
-          id={descId}
-          name="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="w-full rounded border border-slate-300 bg-[#f7f1e4] px-3 py-2 focus:border-slate-400 focus:outline-none"
-          rows={3}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label htmlFor={periodId} className="block mb-1 text-sm font-medium">Period</label>
-          <select
-            id={periodId}
-            name="periodType"
-            value={periodType}
-            onChange={(e) => setPeriodType(e.target.value)}
-            className="w-full rounded border border-slate-300 bg-[#f7f1e4] px-3 py-2 focus:border-slate-400 focus:outline-none"
-          >
-            {PERIODS.map((p) => ( 
-              <option key={p.value} value={p.value}>{p.label}</option>
-            ))}
-          </select>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {error ? (
+        <div className="px-3 py-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded" role="alert">
+          {error}
         </div>
-        <div>
-          <label htmlFor={freqId} className="block mb-1 text-sm font-medium">Frequency</label>
+      ) : null}
+
+      <div className="space-y-5">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-slate-700" htmlFor="habit-name">Name</label>
           <input
-            id={freqId}
-            name="frequency"
-            type="number"
-            min={1}
-            step={1}
-            value={frequency}
-            onChange={(e) => setFrequency(e.target.value)}
-            className="w-full rounded border border-slate-300 bg-[#f7f1e4] px-3 py-2 focus:border-slate-400 focus:outline-none"
-            aria-invalid={!!errors.frequency}
-            aria-describedby={errors.frequency ? `${freqId}-error` : undefined}
+            id="habit-name"
+            type="text"
+            value={form.name}
+            onChange={(e) => updateField('name', e.target.value)}
+            className="w-full rounded border border-slate-300 bg-[#f7f1e4] px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+            placeholder="e.g. Morning run"
+            required
           />
-          {errors.frequency ? <p id={`${freqId}-error`} className="mt-1 text-sm text-red-600">{errors.frequency}</p> : null}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-slate-700" htmlFor="habit-description">Description</label>
+          <textarea
+            id="habit-description"
+            value={form.description}
+            onChange={(e) => updateField('description', e.target.value)}
+            className="w-full rounded border border-slate-300 bg-[#f7f1e4] px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+            rows={4}
+            placeholder="Add more context"
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-slate-700" htmlFor="habit-period">Period</label>
+            <select
+              id="habit-period"
+              value={form.periodType}
+              onChange={(e) => updateField('periodType', e.target.value)}
+              className="w-full rounded border border-slate-300 bg-[#f7f1e4] px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+            >
+              {PERIOD_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-slate-700" htmlFor="habit-frequency">Frequency</label>
+            <input
+              id="habit-frequency"
+              type="number"
+              min={1}
+              value={form.frequency}
+              onChange={(e) => updateField('frequency', e.target.value)}
+              className="w-full rounded border border-slate-300 bg-[#f7f1e4] px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-slate-700" htmlFor="habit-category">Category</label>
+            <div className="flex gap-2">
+              <select
+                id="habit-category"
+                value={form.category}
+                onChange={(e) => updateField('category', e.target.value)}
+                className="w-full rounded border border-slate-300 bg-[#f7f1e4] px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+              >
+                <option value="">Uncategorized</option>
+                {categoryNames.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={toggleCategoryCreator}
+                className="btn btn-secondary"
+              >
+                {showCreateCategory ? 'Cancel' : 'New'}
+              </button>
+            </div>
+          </div>
+          {showCreateCategory ? (
+            <div className="space-y-2 rounded border border-slate-300 bg-[#f7f1e4] p-3">
+              <input
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => { setNewCategoryName(e.target.value); setCategoryError('') }}
+                className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                placeholder="New category name"
+              />
+              {categoryError ? (
+                <div className="text-xs text-red-600">{categoryError}</div>
+              ) : null}
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleCreateCategory}
+                  className="btn btn-primary"
+                  disabled={isCreatingCategory}
+                >
+                  {isCreatingCategory ? 'Creating…' : 'Create'}
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-slate-700">Icon</div>
+          <IconPicker value={form.icon} onChange={(value) => updateField('icon', value)} />
         </div>
       </div>
-      <div>
-        <label htmlFor={categoryId} className="block mb-1 text-sm font-medium">Category</label>
-        <input
-          id={categoryId}
-          name="category"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="w-full rounded border border-slate-300 bg-[#f7f1e4] px-3 py-2 focus:border-slate-400 focus:outline-none"
-          list={dataListId}
-          placeholder={categoryOptions.length ? 'Type or choose…' : 'Type a category'}
-          autoComplete="off"
-        />
-        {categoryOptions.length ? (
-          <datalist id={dataListId}>
-            {categoryOptions.map((opt) => (
-              <option key={opt} value={opt} />
-            ))}
-          </datalist>
-        ) : null}
-      </div>
-      <div>
-        <label className="block mb-2 text-sm font-medium">Icon</label>
-        <IconPicker value={icon} onChange={setIcon} />
-      </div>
-      <div className="flex gap-2 justify-end">
-        <button type="button" onClick={onCancel} className="btn btn-secondary">Cancel</button>
-        <button type="submit" className="btn btn-primary">Save</button>
+
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="btn btn-secondary"
+          disabled={isSubmitting}
+        >
+          Cancel
+        </button>
+        <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+          {isSubmitting ? 'Saving…' : submitLabel}
+        </button>
       </div>
     </form>
   )
 }
-
 

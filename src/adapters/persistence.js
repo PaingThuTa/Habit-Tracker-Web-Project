@@ -2,7 +2,8 @@
 
 import { useAuthStore } from '@/store/useAuthStore'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api'
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || `${basePath}/api`
 
 // Function to make API requests with Microsoft authentication
 async function apiRequest(endpoint, options = {}) {
@@ -90,17 +91,20 @@ export async function addCompletion(habitId, timestamp) {
   })
 }
 
-// Function component to remove a completion
 export async function removeCompletion(completionId) {
   await apiRequest(`/completions/${completionId}`, {
     method: 'DELETE',
   })
 }
-  
-// Function component to replace all habits and completions
+
+export async function updateCompletion(completionId, updates) {
+  return await apiRequest(`/completions/${completionId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  })
+}
+
 export async function replaceAll(habits, completions) {
-  // This would need to be implemented as a bulk operation or individual calls
-  // For now, we'll implement it as individual calls
   for (const habit of habits) {
     await saveHabit(habit)
   }
@@ -109,4 +113,27 @@ export async function replaceAll(habits, completions) {
   }
 }
 
+// Categories
+export async function getCategories() {
+  return await apiRequest('/categories')
+}
 
+export async function createCategory(name) {
+  return await apiRequest('/categories', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  })
+}
+
+export async function updateCategory(id, updates) {
+  return await apiRequest(`/categories/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  })
+}
+
+export async function deleteCategory(id) {
+  return await apiRequest(`/categories/${id}`, {
+    method: 'DELETE',
+  })
+}

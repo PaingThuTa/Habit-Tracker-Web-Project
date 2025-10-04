@@ -47,6 +47,10 @@ export default function Sidebar() {
             <span className="text-base material-icons">checklist</span>
             <span>Habits</span>
           </Link>
+          <Link href="/categories" className={navClass(pathname, '/categories')} onClick={() => setOpen(false)}>
+            <span className="text-base material-icons">label</span>
+            <span>Categories</span>
+          </Link>
           <Link href="/dashboard" className={navClass(pathname, '/dashboard')} onClick={() => setOpen(false)}>
             <span className="text-base material-icons">dashboard</span>
             <span>Dashboard</span>

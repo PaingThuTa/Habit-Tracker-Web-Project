@@ -12,8 +12,8 @@ import Modal from './Modal'
 import HabitForm from './HabitForm'
 
 // Function component to list habits
-export default function HabitList() {
-  const { habits, completions, addCompletion, undoLastCompletion, deleteHabit, updateHabit } = useHabitsStore()
+export default function HabitList({ items }) {
+  const { habits: storeHabits, completions, addCompletion, undoLastCompletion, deleteHabit, updateHabit } = useHabitsStore()
   const [editing, setEditing] = useState(null)
 
   function handleSave(updates) {
@@ -22,7 +22,8 @@ export default function HabitList() {
   }
 
   const cards = useMemo(() => {
-    return habits.map((h) => {
+    const list = items ?? storeHabits
+    return list.map((h) => {
       const cs = completions.filter((c) => c.habitId === h.id)
       const progress = computeCurrentPeriodProgress(h, cs)
       const met = progress.value >= h.frequency
@@ -65,7 +66,7 @@ export default function HabitList() {
         </div>
       )
     })
-  }, [habits, completions, addCompletion, undoLastCompletion, deleteHabit])
+  }, [items, storeHabits, completions, addCompletion, undoLastCompletion, deleteHabit])
 
   return (
     <div className="space-y-3">

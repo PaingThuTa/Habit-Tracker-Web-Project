@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
   basePath: '/habit-tracker',
+  reactStrictMode: true,
   experimental: {
     serverActions: {
       allowedOrigins: ['*'],

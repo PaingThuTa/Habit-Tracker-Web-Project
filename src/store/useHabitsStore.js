@@ -11,6 +11,7 @@ import {
   getCompletions as persistGetCompletions,
   addCompletion as persistAddCompletion,
   removeCompletion as persistRemoveCompletion,
+  updateCompletion as persistUpdateCompletion,
   getAllCompletions,
 } from '@/adapters/persistence'
 import { getCurrentPeriodBounds, isInCurrentPeriod } from '@/utils/time'
@@ -28,6 +29,35 @@ export const useHabitsStore = create((set, get) => ({
       set({ habits, completions, persistenceError: null })
     } catch (e) {
       set({ persistenceError: 'Data storage is unavailable. Changes will not persist.' })
+    }
+  },
+
+  async updateCompletion(id, updates) {
+    try {
+      const existing = get().completions.find((c) => c.id === id)
+      if (!existing) return null
+      const habit = get().habits.find((h) => h.id === existing.habitId)
+      const nextTimestamp = Object.prototype.hasOwnProperty.call(updates, 'timestamp') ? updates.timestamp : existing.timestamp
+      if (typeof nextTimestamp === 'number') {
+        if (nextTimestamp > Date.now()) {
+          set({ persistenceError: 'Invalid completion timestamp.' })
+          return null
+        }
+        const habitCreationTs = habit ? (habit.createdAt || habit.startDate || 0) : 0
+        if (habitCreationTs && nextTimestamp < habitCreationTs) {
+          set({ persistenceError: 'Invalid completion timestamp.' })
+          return null
+        }
+      }
+      const saved = await persistUpdateCompletion(id, { ...existing, ...updates })
+      set((s) => ({
+        completions: s.completions.map((c) => (c.id === id ? saved : c)),
+        persistenceError: null,
+      }))
+      return saved
+    } catch (e) {
+      set({ persistenceError: 'Failed to update completion.' })
+      return null
     }
   },
 
