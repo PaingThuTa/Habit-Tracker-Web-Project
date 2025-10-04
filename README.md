@@ -1,5 +1,10 @@
 # Habit Tracker
 
+## Team Members 
+
+1. Min Myint Moh Soe
+2. Paing Thu Ta
+
 Habit tracking app with Microsoft login (MSAL), MongoDB persistence, Tailwind CSS UI, and client state via Zustand. The app exposes a full REST-style backend using Next.js App Router API routes under `src/app/api/(backend)`.
 
 The site is configured to run under a base path: `/habit-tracker` (see `next.config.mjs`). If you deploy at a different subpath or root, update configuration accordingly.
