@@ -1,7 +1,5 @@
 # Habit Tracker
 
-Deployment link : https://minmyintmohsoe.centralindia.cloudapp.azure.com/habit-tracker
-
 ## Team Members 
 
 1. Min Myint Moh Soe
